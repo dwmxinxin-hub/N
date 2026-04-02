@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>N组共享战报大屏</title>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+:root{--card:rgba(8,20,40,.82);--line:rgba(92,198,255,.20);--text:#ebf9ff;--muted:#85a7c5;--cyan:#2fd6ff;--green:#57ffa8;--gold:#ffce6a;--red:#ff7f7f;--yellow:#ffd76a}
+*{box-sizing:border-box} html,body{height:100%}
+body{margin:0;color:var(--text);font-family:"Microsoft YaHei",system-ui,sans-serif;overflow:hidden;background:radial-gradient(circle at 15% 10%, rgba(47,214,255,.15), transparent 25%),radial-gradient(circle at 90% 15%, rgba(87,255,168,.10), transparent 25%),radial-gradient(circle at 50% 100%, rgba(30,80,180,.20), transparent 34%),linear-gradient(180deg,#020611 0%,#07111d 55%,#040b14 100%)}
+.grid-bg::before,.grid-bg::after{content:"";position:fixed;inset:0;pointer-events:none}
+.grid-bg::before{background-image:linear-gradient(rgba(47,214,255,.06) 1px, transparent 1px),linear-gradient(90deg, rgba(47,214,255,.06) 1px, transparent 1px);background-size:42px 42px}
+.grid-bg::after{background:linear-gradient(90deg, transparent, rgba(47,214,255,.10), transparent);width:38%;animation:scan 10s linear infinite}
+@keyframes scan{from{transform:translateX(-45vw)}to{transform:translateX(145vw)}}
+.screen{position:relative;width:100vw;height:100vh;padding:14px;display:grid;grid-template-rows:50px 88px 120px 1fr 34px;gap:12px}
+.top-alert{border:1px solid rgba(255,206,106,.18);border-radius:18px;background:linear-gradient(90deg, rgba(255,206,106,.12), rgba(47,214,255,.08), rgba(87,255,168,.08));display:flex;align-items:center;padding:0 16px;gap:12px}
+.alert-tag{padding:8px 12px;border-radius:999px;border:1px solid rgba(255,206,106,.35);color:#fff0c6;font-size:12px;background:rgba(255,206,106,.12)}
+.alert-marquee{white-space:nowrap;overflow:hidden;position:relative;flex:1}.alert-marquee span{display:inline-block;padding-left:100%;animation:marq 24s linear infinite}
+@keyframes marq{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+.header{background:linear-gradient(180deg, rgba(7,18,34,.86), rgba(7,18,34,.58));border:1px solid var(--line);border-radius:22px;display:grid;grid-template-columns:300px 1fr 360px;align-items:center;padding:14px 22px}
+.corner-box{display:flex;flex-direction:column;gap:6px;color:var(--muted);font-size:14px}.main-title{text-align:center}.main-title h1{margin:0;font-size:36px;font-weight:800}.main-title p{margin:8px 0 0;color:var(--muted);font-size:15px}.time-box{text-align:right}.clock{font-size:32px;font-weight:800}.date-text{margin-top:6px;color:var(--muted);font-size:14px}
+.summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}.sum-card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px 18px}.sum-label{color:var(--muted);font-size:14px}.sum-value{margin-top:10px;font-size:28px;font-weight:800}.sum-sub{margin-top:8px;color:#9ed4e6;font-size:13px}
+.slides{position:relative;min-height:0;overflow:hidden}.slide{position:absolute;inset:0;opacity:0;transform:translateX(24px) scale(.99);transition:all .7s ease;pointer-events:none}.slide.active{opacity:1;transform:translateX(0) scale(1);pointer-events:auto}
+.content3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;height:100%}.content2{display:grid;grid-template-columns:1.2fr .8fr;gap:12px;height:100%}
+.panel{background:linear-gradient(180deg, rgba(8,20,40,.85), rgba(6,16,30,.82));border:1px solid var(--line);border-radius:22px;padding:14px;display:flex;flex-direction:column;gap:12px;min-height:0;overflow:hidden}
+.panel h2{margin:0;font-size:22px}.subgrid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.subgrid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.kpi{border:1px solid rgba(140,214,255,.12);border-radius:18px;padding:14px;background:rgba(255,255,255,.03)} .kpi .lab{font-size:12px;color:var(--muted)} .kpi .val{margin-top:8px;font-size:24px;font-weight:800}
+.compare-row,.focus-row,.rank-row{display:grid;grid-template-columns:150px 1fr 120px;align-items:center;gap:12px;border:1px solid rgba(140,214,255,.10);border-radius:14px;padding:10px 12px;background:rgba(255,255,255,.025)}
+.focus-row{grid-template-columns:150px 1fr 150px}.rank-row{grid-template-columns:58px 1fr 150px 140px}
+.bar{width:100%;height:12px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.06)}.bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--green))}
+.table-wrap{min-height:0;overflow:hidden;border:1px solid rgba(140,214,255,.10);border-radius:16px;background:rgba(255,255,255,.025);flex:1}
+table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px} thead th{background:rgba(5,14,28,.96);color:#bbebff;padding:10px 6px} tbody td{padding:9px 6px;text-align:center;color:#e9f7ff;border-bottom:1px solid rgba(255,255,255,.05)}
+.status-light{display:inline-flex;align-items:center;gap:8px;font-size:12px}.dot{width:10px;height:10px;border-radius:50%;display:inline-block;box-shadow:0 0 10px currentColor}.green{color:var(--green)}.yellow{color:var(--yellow)}.red{color:var(--red)}
+.footer{color:var(--muted);font-size:12px;display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid rgba(92,198,255,.12);border-radius:16px;background:rgba(8,20,40,.45);padding:0 12px}.ticker{white-space:nowrap;overflow:hidden;position:relative;flex:1;text-align:right}.ticker span{display:inline-block;padding-left:100%;animation:ticker 24s linear infinite}@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+.full-btn{border:none;cursor:pointer;padding:8px 14px;border-radius:12px;color:#04131f;background:linear-gradient(135deg,var(--cyan),#8ff7ff);font-weight:700}
+.pure-export .top-alert,.pure-export .footer,.pure-export .export-controls,.pure-export .alert-tag{display:none!important}.pure-export .screen{grid-template-rows:88px 120px 1fr!important;padding-top:0}
+@media (max-width:1600px){.summary{grid-template-columns:repeat(3,minmax(0,1fr))}.screen{grid-template-rows:50px 88px auto 1fr 34px}.content2,.content3{grid-template-columns:1fr}.subgrid-4{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="screen" id="captureRoot">
+  <section class="top-alert">
+    <div class="alert-tag">战报快讯</div>
+    <div class="alert-marquee"><span id="battleNews">载入中...</span></div>
+    <div class="export-controls" style="display:flex;gap:8px;">
+      <select id="historySelect" class="full-btn" style="background:rgba(255,255,255,.92);color:#04131f;"></select>
+      <button class="full-btn" id="exportCurrentBtn">导出当前页</button>
+      <button class="full-btn" id="exportPureBtn">导出纯净图</button>
+      <button class="full-btn" id="fullscreenBtn">全屏</button>
+    </div>
+  </section>
+  <section class="header">
+    <div class="corner-box"><div>主题：<span id="periodLabel">今日数据</span></div><div>副标题：<span id="subTitle">科技金融数据驾驶舱</span></div></div>
+    <div class="main-title"><h1 id="screenTitle">N组某某日期数据</h1><p>多人共享战报大屏 · GitHub Pages + Google Sheets</p></div>
+    <div class="time-box"><div class="clock" id="clock">00:00:00</div><div class="date-text" id="displayDate">--</div></div>
+  </section>
+  <section class="summary" id="summaryCards"></section>
+  <section class="slides">
+    <div class="slide active" id="slide-overview"></div>
+    <div class="slide" id="slide-pk"></div>
+    <div class="slide" id="slide-rank"></div>
+    <div class="slide" id="slide-focus"></div>
+  </section>
+  <section class="footer"><div>当前轮播页：<span id="slideName">总览页</span></div><div class="ticker"><span id="tickerText">等待数据载入...</span></div></section>
+</div>
+
+<script>
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyR0w6qYLp6wwoNtURf1_W9IfrNUNOcOL2toMDv31YMKyzMVohwdjbXATa-9FAKQis/exec";
+const TEAM_CONFIG = [
+  { name: "沈钧小队", leader: "沈钧", members: ["沈钧","阿沐","少安","小海"], targetAmount: 80000, targetAccounts: 2 },
+  { name: "阿东小队", leader: "阿东", members: ["阿东","小辉","阿全"], targetAmount: 80000, targetAccounts: 2 },
+  { name: "呼噜小队", leader: "呼噜", members: ["呼噜","诸葛","托尼"], targetAmount: 80000, targetAccounts: 2 }
+];
+const slideNames = ["总览页","三队PK页","个人排行榜页","重点关注页"];
+let currentSlide = 0;
+let currentData = null;
+let previousData = null;
+
+function money(n){ return "$" + Number(n||0).toLocaleString("en-US",{maximumFractionDigits:2}); }
+function num(n){ return Number(n||0).toLocaleString("zh-CN",{maximumFractionDigits:2}); }
+function pct(v){ return Number(v||0).toFixed(1) + "%"; }
+function teamStats(team){
+  const sum = key => team.members.reduce((s,m)=>s+Number(m[key]||0),0);
+  const deposit = sum("depositAmount"), account = sum("accountOpenCount"), intent = sum("intentionCount"),
+        valid = sum("validCustomers"), news = sum("newCustomers"), hot = sum("hotChatCount"), blocked = sum("blockedCount");
+  return {
+    deposit, account, intent, valid, news, hot, blocked,
+    amountRate: team.targetAmount ? (deposit/team.targetAmount*100) : 0,
+    accountRate: team.targetAccounts ? (account/team.targetAccounts*100) : 0,
+    validRate: news ? (valid/news*100) : 0,
+    intentRate: valid ? (intent/valid*100) : 0,
+    openRate: intent ? (account/intent*100) : 0,
+    perCapita: team.members.length ? (deposit/team.members.length) : 0
+  };
+}
+function flattenMembers(data){ return data.teams.flatMap(team=>team.members.map(m=>({...m,teamName:team.name,isLeader:team.leader===m.name}))); }
+function statusOf(m){
+  if (Number(m.depositAmount||0) >= 10000 || Number(m.accountOpenCount||0) >= 2) return { cls:"green", text:"强势推进" };
+  if (Number(m.blockedCount||0) >= 3 || (Number(m.intentionCount||0) >= 3 && Number(m.accountOpenCount||0) === 0)) return { cls:"red", text:"重点干预" };
+  if (Number(m.hotChatCount||0) >= 2 || Number(m.intentionCount||0) >= 2) return { cls:"yellow", text:"持续跟进" };
+  return { cls:"green", text:"正常推进" };
+}
+async function api(action, params={}, method="GET"){
+  if (!APPS_SCRIPT_URL.startsWith("http")) throw new Error("请先把 APPS_SCRIPT_URL 替换成你的 Apps Script Web App URL");
+  let url = APPS_SCRIPT_URL + "?action=" + encodeURIComponent(action);
+  Object.entries(params).forEach(([k,v]) => { url += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(v); });
+  const res = await fetch(url, { method });
+  return await res.json();
+}
+function updateHeader(data){
+  document.getElementById("screenTitle").textContent = data.title;
+  document.getElementById("periodLabel").textContent = data.period;
+  document.getElementById("subTitle").textContent = data.subtitle;
+  document.getElementById("displayDate").textContent = "显示日期：" + data.date;
+}
+function renderSummary(data, prev){
+  const teamStatList = data.teams.map(teamStats);
+  const totalDeposit = teamStatList.reduce((s,t)=>s+t.deposit,0);
+  const totalAccounts = teamStatList.reduce((s,t)=>s+t.account,0);
+  const totalIntent = teamStatList.reduce((s,t)=>s+t.intent,0);
+  const totalValid = teamStatList.reduce((s,t)=>s+t.valid,0);
+  const totalHot = teamStatList.reduce((s,t)=>s+t.hot,0);
+  const totalBlocked = teamStatList.reduce((s,t)=>s+t.blocked,0);
+  let depositDelta = 0, accountDelta = 0;
+  if (prev) {
+    const prevList = prev.teams.map(teamStats);
+    depositDelta = totalDeposit - prevList.reduce((s,t)=>s+t.deposit,0);
+    accountDelta = totalAccounts - prevList.reduce((s,t)=>s+t.account,0);
+  }
+  const cards = [
+    { label:"总入金金额", value:money(totalDeposit), sub:`较历史 ${depositDelta>=0?'+':'-'}${money(Math.abs(depositDelta))}` },
+    { label:"总开户数", value:totalAccounts, sub:`较历史 ${accountDelta>=0?'+':'-'}${num(Math.abs(accountDelta))}` },
+    { label:"总意向数", value:totalIntent, sub:"重点转化池" },
+    { label:"总有效客户", value:totalValid, sub:"客户质量追踪" },
+    { label:"总热聊客户", value:totalHot, sub:"高意向实时关注" },
+    { label:"封号预警数", value:totalBlocked, sub:"越高越需要干预" }
+  ];
+  document.getElementById("summaryCards").innerHTML = cards.map(c=>`
+    <div class="sum-card">
+      <div class="sum-label">${c.label}</div>
+      <div class="sum-value">${c.value}</div>
+      <div class="sum-sub">${c.sub}</div>
+    </div>
+  `).join("");
+}
+function renderOverview(data, prev){
+  const teamRows = data.teams.map((team,idx)=>({team,stats:teamStats(team),prev:prev?teamStats(prev.teams[idx]):null}));
+  const maxDeposit = Math.max(...teamRows.map(x=>x.stats.deposit), 1);
+  const top3 = flattenMembers(data).sort((a,b)=>b.depositAmount-a.depositAmount).slice(0,3);
+  document.getElementById("slide-overview").innerHTML = `
+    <div class="content2">
+      <div class="panel">
+        <h2>总览页</h2>
+        <div class="subgrid-4">
+          ${teamRows.slice(0,1).map(x=>`
+            <div class="kpi"><div class="lab">带队核心</div><div class="val">${x.team.leader}</div></div>
+            <div class="kpi"><div class="lab">${x.team.name}总入金</div><div class="val">${money(x.stats.deposit)}</div></div>
+            <div class="kpi"><div class="lab">业绩完成率</div><div class="val">${pct(x.stats.amountRate)}</div></div>
+            <div class="kpi"><div class="lab">开户完成率</div><div class="val">${pct(x.stats.accountRate)}</div></div>
+          `).join("")}
+        </div>
+        <div style="display:grid;gap:10px;">
+          ${teamRows.map(x=>{
+            const delta = x.prev ? x.stats.deposit - x.prev.deposit : 0;
+            return `<div class="compare-row">
+              <div>${x.team.name}<div style="font-size:12px;color:${delta>=0?'#57ffa8':'#ff8f8f'};">${x.prev?`${delta>=0?'+':'-'}${money(Math.abs(delta))}`:'无历史对比'}</div></div>
+              <div class="bar"><span style="width:${(x.stats.deposit/maxDeposit)*100}%"></span></div>
+              <div style="text-align:right;">${money(x.stats.deposit)}</div>
+            </div>`
+          }).join("")}
+        </div>
+      </div>
+      <div class="panel">
+        <h2>个人贡献榜 TOP3</h2>
+        <div style="display:grid;gap:10px;">
+          ${top3.map((m,idx)=>`
+            <div class="rank-row">
+              <div style="font-weight:800;color:#ffce6a;">TOP ${idx+1}</div>
+              <div>${m.name}${m.isLeader?` <span style="color:#ffce6a;">◆</span>`:""}<div style="font-size:12px;color:#85a7c5;">${m.teamName}</div></div>
+              <div class="status-light"><span class="dot ${statusOf(m).cls}"></span>${statusOf(m).text}</div>
+              <div style="text-align:right;font-weight:800;">${money(m.depositAmount)}</div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+function renderPK(data){
+  document.getElementById("slide-pk").innerHTML = `
+    <div class="content3">
+      ${data.teams.map(team=>{
+        const s = teamStats(team);
+        const top = [...team.members].sort((a,b)=>b.depositAmount-a.depositAmount)[0] || { name:"--", depositAmount:0 };
+        return `<div class="panel">
+          <h2>${team.name}</h2>
+          <div class="subgrid-4">
+            <div class="kpi"><div class="lab">总入金</div><div class="val">${money(s.deposit)}</div></div>
+            <div class="kpi"><div class="lab">总开户</div><div class="val">${num(s.account)}</div></div>
+            <div class="kpi"><div class="lab">意向率</div><div class="val">${pct(s.intentRate)}</div></div>
+            <div class="kpi"><div class="lab">人均产出</div><div class="val">${money(s.perCapita)}</div></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>成员</th><th>新增</th><th>有效</th><th>意向</th><th>开户</th><th>入金</th></tr></thead>
+              <tbody>
+                ${team.members.map(m=>`
+                  <tr>
+                    <td>${m.name}${team.leader===m.name?`◆`:""}</td>
+                    <td>${num(m.newCustomers)}</td>
+                    <td>${num(m.validCustomers)}</td>
+                    <td>${num(m.intentionCount)}</td>
+                    <td>${num(m.accountOpenCount)}</td>
+                    <td>${money(m.depositAmount)}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+          <div style="font-size:12px;color:#85a7c5;">最佳入金成员：<span style="color:#ffce6a;">${top.name}</span> ｜ ${money(top.depositAmount)}</div>
+        </div>`
+      }).join("")}
+    </div>
+  `;
+}
+function renderRank(data){
+  const members = flattenMembers(data);
+  const byDeposit = [...members].sort((a,b)=>b.depositAmount-a.depositAmount).slice(0,10);
+  const byAccount = [...members].sort((a,b)=>b.accountOpenCount-a.accountOpenCount).slice(0,10);
+  const byIntent = [...members].sort((a,b)=>b.intentionCount-a.intentionCount).slice(0,10);
+  function panel(title, arr, key, formatter){
+    return `<div class="panel"><h2>${title}</h2><div style="display:grid;gap:10px;">${
+      arr.map((m,idx)=>`<div class="rank-row"><div style="font-weight:800;color:#ffce6a;">#${idx+1}</div><div>${m.name}<div style="font-size:12px;color:#85a7c5;">${m.teamName}</div></div><div class="status-light"><span class="dot ${statusOf(m).cls}"></span>${statusOf(m).text}</div><div style="text-align:right;font-weight:800;">${formatter(m[key])}</div></div>`).join("")
+    }</div></div>`;
+  }
+  document.getElementById("slide-rank").innerHTML = `<div class="content3">${panel("入金榜",byDeposit,"depositAmount",money)}${panel("开户榜",byAccount,"accountOpenCount",num)}${panel("意向榜",byIntent,"intentionCount",num)}</div>`;
+}
+function renderFocus(data, prev){
+  const members = flattenMembers(data);
+  const list = [];
+  members.filter(m=>m.intentionCount>=2 && m.accountOpenCount===0).forEach(m=>list.push({type:"高意向未开户",name:m.name,team:m.teamName,val:`意向 ${num(m.intentionCount)}`}));
+  members.filter(m=>m.blockedCount>=1).forEach(m=>list.push({type:"封号偏高",name:m.name,team:m.teamName,val:`封号 ${num(m.blockedCount)}`}));
+  members.filter(m=>m.hotChatCount>=2).forEach(m=>list.push({type:"热聊高潜",name:m.name,team:m.teamName,val:`热聊 ${num(m.hotChatCount)}`}));
+  const focusList = list.slice(0,10);
+  let compareHtml = `<div style="font-size:12px;color:#85a7c5;">暂无历史对比</div>`;
+  if (prev) {
+    const currentTotals = data.teams.map(teamStats);
+    const prevTotals = prev.teams.map(teamStats);
+    const best = data.teams.map((t,i)=>({name:t.name,d:currentTotals[i].deposit-prevTotals[i].deposit})).sort((a,b)=>b.d-a.d)[0];
+    compareHtml = `<div class="kpi"><div class="lab">对比上一份历史</div><div class="val">${best.name}</div><div style="margin-top:8px;color:${best.d>=0?'#57ffa8':'#ff8f8f'};">${best.d>=0?'+':'-'}${money(Math.abs(best.d))}</div></div>`;
+  }
+  document.getElementById("slide-focus").innerHTML = `
+    <div class="content2">
+      <div class="panel"><h2>重点关注名单</h2><div style="display:grid;gap:10px;">${
+        focusList.length ? focusList.map(x=>`<div class="focus-row"><div style="color:#ffce6a;font-weight:800;">${x.type}</div><div>${x.name}<div style="font-size:12px;color:#85a7c5;">${x.team}</div></div><div style="text-align:right;">${x.val}</div></div>`).join("") : '<div style="font-size:12px;color:#85a7c5;">暂无重点关注数据</div>'
+      }</div></div>
+      <div class="panel"><h2>变化摘要</h2>${compareHtml}</div>
+    </div>
+  `;
+}
+function renderAll(data, prev){
+  currentData = data; previousData = prev;
+  updateHeader(data);
+  renderSummary(data, prev);
+  renderOverview(data, prev);
+  renderPK(data);
+  renderRank(data);
+  renderFocus(data, prev);
+  updateBattleNews(data, prev);
+  updateTicker(data);
+}
+function updateBattleNews(data, prev){
+  const teams = data.teams.map(t=>({name:t.name,stats:teamStats(t)})).sort((a,b)=>b.stats.deposit-a.stats.deposit);
+  const lead = teams[0], chase = teams[1] || lead;
+  let extra = "";
+  if (prev) {
+    const curr = teams.reduce((s,t)=>s+t.stats.deposit,0);
+    const prv = prev.teams.map(teamStats).reduce((s,t)=>s+t.deposit,0);
+    extra = `；较历史 ${curr>=prv?'+':'-'}${money(Math.abs(curr-prv))}`;
+  }
+  document.getElementById("battleNews").textContent = `当前领跑小队：${lead.name}，累计入金 ${money(lead.stats.deposit)}；追赶小队：${chase.name}，累计入金 ${money(chase.stats.deposit)}${extra}。`;
+}
+function updateTicker(data){
+  const teams = data.teams.map(t=>({name:t.name,stats:teamStats(t)})).sort((a,b)=>b.stats.deposit-a.stats.deposit);
+  const lead = teams[0];
+  const members = flattenMembers(data).sort((a,b)=>b.depositAmount-a.depositAmount);
+  const top = members[0] || {name:"--",teamName:"--",depositAmount:0};
+  document.getElementById("tickerText").textContent = `实时播报：当前领先小队 ${lead.name}，入金 ${money(lead.stats.deposit)}；个人第一 ${top.name}（${top.teamName}），入金 ${money(top.depositAmount)}。`;
+}
+function tickClock(){
+  const n = new Date();
+  document.getElementById("clock").textContent = `${String(n.getHours()).padStart(2,"0")}:${String(n.getMinutes()).padStart(2,"0")}:${String(n.getSeconds()).padStart(2,"0")}`;
+}
+function showSlide(index){
+  currentSlide = index;
+  [...document.querySelectorAll(".slide")].forEach((s,i)=>s.classList.toggle("active", i===index));
+  document.getElementById("slideName").textContent = slideNames[index];
+}
+async function exportScreen(filename, pure=false){
+  const root = document.getElementById("captureRoot");
+  if (pure) document.body.classList.add("pure-export");
+  await new Promise(r=>setTimeout(r,120));
+  try{
+    const canvas = await html2canvas(root, { useCORS:true, backgroundColor:"#020816", scale:2 });
+    const a = document.createElement("a");
+    a.download = filename;
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+  } finally {
+    document.body.classList.remove("pure-export");
+  }
+}
+async function loadHistoryDates(){
+  const res = await api("history_dates");
+  if (!res.ok) return;
+  const sel = document.getElementById("historySelect");
+  sel.innerHTML = `<option value="">最新数据</option>` + (res.dates||[]).map(d=>`<option value="${d}">${d}</option>`).join("");
+}
+async function loadData(reportDate=""){
+  const currentRes = await api("latest_report", reportDate ? { report_date: reportDate } : {});
+  const compareRes = await api("compare_report", reportDate ? { report_date: reportDate } : {});
+  if (!currentRes.ok || !compareRes.ok) throw new Error((currentRes.error || compareRes.error || "读取失败"));
+  renderAll(currentRes.data, compareRes.previous);
+}
+document.getElementById("historySelect").addEventListener("change", async e => { try{ await loadData(e.target.value); }catch(err){ alert(err.message); } });
+document.getElementById("exportCurrentBtn").addEventListener("click", async ()=>{ const title=(document.getElementById("screenTitle").textContent||"N组战报").replace(/[\\/:*?"<>|]+/g,"_"); await exportScreen(`${title}_${slideNames[currentSlide]}.png`, false); });
+document.getElementById("exportPureBtn").addEventListener("click", async ()=>{ const title=(document.getElementById("screenTitle").textContent||"N组战报").replace(/[\\/:*?"<>|]+/g,"_"); await exportScreen(`${title}_${slideNames[currentSlide]}_纯净图.png`, true); });
+document.getElementById("fullscreenBtn").addEventListener("click", async ()=>{ try{ if (!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen(); }catch(_){} });
+tickClock();
+setInterval(tickClock, 1000);
+setInterval(()=>showSlide((currentSlide+1)%4), 8000);
+(async ()=>{
+  try{
+    await loadHistoryDates();
+    await loadData();
+    showSlide(0);
+  }catch(err){
+    document.getElementById("battleNews").textContent = err.message;
+  }
+})();
+</script>
+</body>
+</html>

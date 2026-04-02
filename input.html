@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>N组共享战报录入页</title>
+  <style>
+    :root{--bg:#07111f;--card:rgba(9,24,43,.92);--line:rgba(95,196,255,.22);--text:#ebf7ff;--muted:#8ca9c2;--cyan:#2fd6ff;--gold:#ffce6a}
+    *{box-sizing:border-box} body{margin:0;font-family:"Microsoft YaHei",system-ui,sans-serif;background:radial-gradient(circle at 20% 20%, rgba(47,214,255,.12), transparent 32%),linear-gradient(180deg,#020812 0%,#07111f 60%,#04101a 100%);color:var(--text)}
+    .topbar{position:sticky;top:0;z-index:10;background:rgba(4,12,24,.88);backdrop-filter:blur(10px);padding:18px 24px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .title h1{margin:0;font-size:28px}.title p{margin:6px 0 0;color:var(--muted);font-size:14px}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap}
+    button,select,input{font:inherit}
+    button{border:none;border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--cyan),#8df5ff);color:#04131f}
+    button.secondary{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--line)}
+    .wrap{max-width:1680px;margin:22px auto;padding:0 18px 28px}
+    .grid{display:grid;grid-template-columns:1.25fr .95fr;gap:16px;margin-bottom:16px}
+    .panel{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px;box-shadow:0 18px 42px rgba(0,0,0,.22)}
+    .panel h2{margin:0 0 14px;font-size:18px}
+    .meta{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:8px}
+    input,select{width:100%;padding:11px 12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(140,214,255,.14);color:var(--text);outline:none}
+    .status{margin-top:12px;min-height:22px;color:#9ff0bc}
+    .teams{display:grid;gap:16px}
+    .team{background:linear-gradient(180deg, rgba(9,26,47,.94), rgba(7,20,36,.94));border:1px solid var(--line);border-radius:22px;overflow:hidden}
+    .team-head{padding:16px 18px;background:linear-gradient(90deg, rgba(47,214,255,.12), rgba(87,255,168,.06));display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;border-bottom:1px solid var(--line)}
+    .team-head h3{margin:0;font-size:20px}
+    .badge{padding:7px 10px;border-radius:999px;font-size:12px;border:1px solid rgba(111,235,255,.25);background:rgba(255,255,255,.04)}
+    .team-sum{padding:14px 18px;display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+    .sum{padding:12px;border:1px solid rgba(140,214,255,.12);border-radius:14px;background:rgba(255,255,255,.03)}
+    .sum .lab{font-size:12px;color:var(--muted)} .sum .val{margin-top:6px;font-size:20px;font-weight:800}
+    .members{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0 18px 18px}
+    .member{padding:14px;border:1px solid rgba(140,214,255,.12);border-radius:18px;background:rgba(255,255,255,.03)}
+    .member h4{margin:0 0 12px;font-size:18px;display:flex;justify-content:space-between}
+    .mgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    .login-mask{position:fixed;inset:0;background:rgba(2,8,22,.78);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;z-index:999}
+    .login-box{width:min(440px,92vw);background:linear-gradient(180deg, rgba(8,20,40,.96), rgba(6,16,30,.92));border:1px solid var(--line);border-radius:24px;padding:26px}
+    .login-box h2{margin:0 0 8px}.login-box p{margin:0 0 16px;color:var(--muted)}
+    @media (max-width:1200px){.grid{grid-template-columns:1fr}.meta,.team-sum{grid-template-columns:repeat(2,1fr)}.mgrid{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width:760px){.members{grid-template-columns:1fr}.meta,.mgrid,.team-sum{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div id="loginMask" class="login-mask">
+    <div class="login-box">
+      <h2>多人共享战报登录</h2>
+      <p>账号密码来自 Google Sheets 的 Users 表。</p>
+      <label>账号</label>
+      <input id="loginUsername" placeholder="请输入账号" />
+      <label style="margin-top:12px;">密码</label>
+      <input id="loginPassword" type="password" placeholder="请输入密码" />
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button id="loginBtn">登录</button>
+        <button class="secondary" id="demoBtn">载入示例</button>
+      </div>
+      <div class="status" id="loginStatus"></div>
+    </div>
+  </div>
+
+  <div class="topbar">
+    <div class="title">
+      <h1>✦ N组共享战报录入页</h1>
+      <p>GitHub Pages 前端 + Google Sheets 数据共享 + Apps Script 后端</p>
+    </div>
+    <div class="toolbar">
+      <button class="secondary" id="reloadBtn">刷新云端数据</button>
+      <button class="secondary" id="clearBtn">清空当天</button>
+      <button class="secondary" id="logoutBtn">退出登录</button>
+      <button id="saveBtn">保存到共享战报</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="grid">
+      <div class="panel">
+        <h2>基础信息</h2>
+        <div class="meta">
+          <div><label>战报标题</label><input id="titleInput" /></div>
+          <div><label>日期</label><input id="dateInput" type="date" /></div>
+          <div><label>周期</label><select id="periodInput"><option>今日数据</option><option>本周数据</option><option>本月数据</option></select></div>
+          <div><label>副标题</label><input id="subtitleInput" value="科技金融数据驾驶舱" /></div>
+          <div><label>历史日期</label><select id="historySelect"><option value="">最新数据</option></select></div>
+        </div>
+        <div class="status" id="status"></div>
+      </div>
+      <div class="panel">
+        <h2>当前登录</h2>
+        <div id="userInfo" style="line-height:1.9;color:#d9f3ff;">未登录</div>
+        <div style="margin-top:12px;color:var(--muted);font-size:13px;">
+          说明：管理员可以保存全部队伍。组长账号建议只维护自己小队数据。
+        </div>
+      </div>
+    </div>
+
+    <div class="teams" id="teamsWrap"></div>
+  </div>
+
+<script>
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyR0w6qYLp6wwoNtURf1_W9IfrNUNOcOL2toMDv31YMKyzMVohwdjbXATa-9FAKQis/exec";
+
+const TEAM_CONFIG = [
+  { name: "沈钧小队", leader: "沈钧", members: ["沈钧","阿沐","少安","小海"], targetAmount: 80000, targetAccounts: 2 },
+  { name: "阿东小队", leader: "阿东", members: ["阿东","小辉","阿全"], targetAmount: 80000, targetAccounts: 2 },
+  { name: "呼噜小队", leader: "呼噜", members: ["呼噜","诸葛","托尼"], targetAmount: 80000, targetAccounts: 2 }
+];
+const FIELDS = [
+  ["phoneCount","手机数"],["usableFacebook","可用Facebook"],["repairCount","补号数"],["blockedCount","封号数"],
+  ["nurturingCount","在养数"],["newCustomers","今日新增客户"],["validCustomers","今日有效客户"],["chattingCount","在聊客户数"],
+  ["hotChatCount","热聊客户数"],["intentionCount","意向数"],["accountOpenCount","开户数"],["depositAmount","入金金额($)"]
+];
+
+let session = null;
+let currentData = emptyReport();
+
+function todayStr(){
+  const d = new Date();
+  return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+}
+function emptyReport(){
+  return {
+    title: `N组 ${todayStr()} 数据战报`,
+    date: todayStr(),
+    period: "今日数据",
+    subtitle: "科技金融数据驾驶舱",
+    teams: TEAM_CONFIG.map(t => ({
+      name: t.name, leader: t.leader, targetAmount: t.targetAmount, targetAccounts: t.targetAccounts,
+      members: t.members.map(m => ({
+        name: m, phoneCount:0, usableFacebook:0, repairCount:0, blockedCount:0, nurturingCount:0,
+        newCustomers:0, validCustomers:0, chattingCount:0, hotChatCount:0, intentionCount:0,
+        accountOpenCount:0, depositAmount:0
+      }))
+    }))
+  };
+}
+function money(n){ return "$" + Number(n||0).toLocaleString("en-US",{maximumFractionDigits:2}); }
+function num(n){ return Number(n||0).toLocaleString("zh-CN",{maximumFractionDigits:2}); }
+function setStatus(msg, target="status"){ document.getElementById(target).textContent = msg; }
+
+async function api(action, body={}, method="POST"){
+  if (!APPS_SCRIPT_URL.startsWith("http")) throw new Error("请先把 APPS_SCRIPT_URL 替换成你的 Apps Script Web App URL");
+  let url = APPS_SCRIPT_URL + "?action=" + encodeURIComponent(action);
+  const options = { method };
+  if (method === "GET") {
+    Object.entries(body).forEach(([k,v]) => url += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(v));
+  } else {
+    options.headers = { "Content-Type": "application/json" };
+    options.body = JSON.stringify(body);
+  }
+  const res = await fetch(url, options);
+  return await res.json();
+}
+
+function fillBaseInfo(data){
+  document.getElementById("titleInput").value = data.title || "";
+  document.getElementById("dateInput").value = data.date || todayStr();
+  document.getElementById("periodInput").value = data.period || "今日数据";
+  document.getElementById("subtitleInput").value = data.subtitle || "科技金融数据驾驶舱";
+}
+
+function teamStats(team){
+  const sum = key => team.members.reduce((s,m)=>s+Number(m[key]||0),0);
+  const deposit = sum("depositAmount");
+  const account = sum("accountOpenCount");
+  const intent = sum("intentionCount");
+  const valid = sum("validCustomers");
+  const news = sum("newCustomers");
+  return {
+    deposit, account, intent,
+    validRate: news ? (valid/news*100) : 0,
+    amountRate: team.targetAmount ? (deposit/team.targetAmount*100) : 0,
+    accountRate: team.targetAccounts ? (account/team.targetAccounts*100) : 0
+  };
+}
+
+function render(data){
+  currentData = JSON.parse(JSON.stringify(data));
+  fillBaseInfo(currentData);
+  const wrap = document.getElementById("teamsWrap");
+  wrap.innerHTML = currentData.teams.map((team,ti)=>{
+    const s = teamStats(team);
+    return `
+      <div class="team">
+        <div class="team-head">
+          <h3>${team.name}</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <div class="badge">负责人：${team.leader}</div>
+            <div class="badge">业绩目标：${money(team.targetAmount)}</div>
+            <div class="badge">开户目标：${team.targetAccounts}</div>
+          </div>
+        </div>
+        <div class="team-sum">
+          <div class="sum"><div class="lab">总入金</div><div class="val">${money(s.deposit)}</div></div>
+          <div class="sum"><div class="lab">总开户</div><div class="val">${num(s.account)}</div></div>
+          <div class="sum"><div class="lab">总意向</div><div class="val">${num(s.intent)}</div></div>
+          <div class="sum"><div class="lab">有效率</div><div class="val">${s.validRate.toFixed(1)}%</div></div>
+          <div class="sum"><div class="lab">业绩完成率</div><div class="val">${s.amountRate.toFixed(1)}%</div></div>
+          <div class="sum"><div class="lab">开户完成率</div><div class="val">${s.accountRate.toFixed(1)}%</div></div>
+        </div>
+        <div class="members">
+          ${team.members.map((member,mi)=>`
+            <div class="member">
+              <h4><span>${member.name}${team.leader===member.name?` <span style="color:#ffce6a;">◆</span>`:""}</span><span style="font-size:12px;color:#8cc7de;">成员录入</span></h4>
+              <div class="mgrid">
+                ${FIELDS.map(([key,label])=>`
+                  <div>
+                    <label>${label}</label>
+                    <input type="number" step="0.01" min="0" data-ti="${ti}" data-mi="${mi}" data-key="${key}" value="${member[key]||0}" />
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }).join("");
+  bindInputs();
+}
+
+function bindInputs(){
+  document.querySelectorAll("input[data-ti]").forEach(inp=>{
+    inp.addEventListener("input", ()=>{
+      const ti = Number(inp.dataset.ti), mi = Number(inp.dataset.mi), key = inp.dataset.key;
+      currentData.teams[ti].members[mi][key] = Number(inp.value || 0);
+      render(currentData);
+    });
+  });
+}
+
+function collectData(){
+  currentData.title = document.getElementById("titleInput").value.trim() || `N组 ${currentData.date} 数据战报`;
+  currentData.date = document.getElementById("dateInput").value || todayStr();
+  currentData.period = document.getElementById("periodInput").value;
+  currentData.subtitle = document.getElementById("subtitleInput").value.trim() || "科技金融数据驾驶舱";
+  return currentData;
+}
+
+async function loadLatest(reportDate=""){
+  const res = await api("latest_report", reportDate ? { report_date: reportDate } : {}, "GET");
+  if (!res.ok) throw new Error(res.error || "读取失败");
+  render(res.data || emptyReport());
+}
+
+async function loadHistoryDates(){
+  const res = await api("history_dates", {}, "GET");
+  if (!res.ok) return;
+  const sel = document.getElementById("historySelect");
+  sel.innerHTML = `<option value="">最新数据</option>` + (res.dates||[]).map(d=>`<option value="${d}">${d}</option>`).join("");
+}
+
+document.getElementById("loginBtn").addEventListener("click", async ()=>{
+  try{
+    const username = document.getElementById("loginUsername").value.trim();
+    const password = document.getElementById("loginPassword").value.trim();
+    const res = await api("login", { username, password }, "POST");
+    if (!res.ok) throw new Error(res.error || "登录失败");
+    session = res;
+    document.getElementById("loginMask").style.display = "none";
+    document.getElementById("userInfo").innerHTML = `账号：<strong>${res.user.username}</strong><br>角色：<strong>${res.user.role}</strong><br>队伍：<strong>${res.user.team}</strong>`;
+    await loadHistoryDates();
+    await loadLatest();
+    setStatus("登录成功。");
+  }catch(err){
+    setStatus(err.message, "loginStatus");
+  }
+});
+
+document.getElementById("demoBtn").addEventListener("click", ()=>{
+  render(emptyReport());
+  document.getElementById("loginMask").style.display = "none";
+  document.getElementById("userInfo").innerHTML = `当前为：<strong>演示模式</strong><br>未连接云端`;
+});
+
+document.getElementById("logoutBtn").addEventListener("click", ()=>{
+  session = null;
+  document.getElementById("loginMask").style.display = "flex";
+  setStatus("已退出登录。");
+});
+
+document.getElementById("reloadBtn").addEventListener("click", async ()=>{
+  try{
+    await loadLatest(document.getElementById("historySelect").value);
+    setStatus("已从云端刷新。");
+  }catch(err){ setStatus(err.message); }
+});
+
+document.getElementById("historySelect").addEventListener("change", async (e)=>{
+  try{
+    await loadLatest(e.target.value);
+    setStatus(e.target.value ? "已切换到历史日期。" : "已切换到最新数据。");
+  }catch(err){ setStatus(err.message); }
+});
+
+document.getElementById("clearBtn").addEventListener("click", ()=>{
+  const d = emptyReport();
+  d.date = document.getElementById("dateInput").value || todayStr();
+  d.title = `N组 ${d.date} 数据战报`;
+  render(d);
+  setStatus("已清空当天数据。");
+});
+
+document.getElementById("saveBtn").addEventListener("click", async ()=>{
+  try{
+    if (!session || !session.token) throw new Error("请先登录");
+    const payload = collectData();
+    const res = await api("save_report", { token: session.token, payload }, "POST");
+    if (!res.ok) throw new Error(res.error || "保存失败");
+    await loadHistoryDates();
+    setStatus(`保存成功，写入 ${res.savedRows} 行。`);
+  }catch(err){
+    setStatus(err.message);
+  }
+});
+
+render(emptyReport());
+</script>
+</body>
+</html>
