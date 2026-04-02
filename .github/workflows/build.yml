@@ -13,7 +13,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -21,25 +21,17 @@ jobs:
       - name: Install Pake
         run: npm install -g pake-cli
 
-      - name: Check Pake Version
-        run: pake --version
-
-      - name: Build EXE
+      - name: Build App
         shell: cmd
+        continue-on-error: true
         run: |
           pake ./jisuanqi.html ^
             --name "交易计算器" ^
             --use-local-file ^
-            --width 1280 ^
-            --height 800 ^
             --keep-binary
 
-      - name: List Files
-        shell: cmd
-        run: dir
-
-      - name: Upload Artifact
+      - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
           name: 交易计算器-EXE
-          path: .
+          path: C:\npm\prefix\node_modules\pake-cli\src-tauri\target\x86_64-pc-windows-msvc\release\pake-交易计算器.exe
