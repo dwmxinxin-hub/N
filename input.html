@@ -136,17 +136,32 @@ function money(n){ return "$" + Number(n||0).toLocaleString("en-US",{maximumFrac
 function num(n){ return Number(n||0).toLocaleString("zh-CN",{maximumFractionDigits:2}); }
 function setStatus(msg, target="status"){ document.getElementById(target).textContent = msg; }
 
-async function api(action, body={}, method="POST"){
-  if (!APPS_SCRIPT_URL.startsWith("http")) throw new Error("请先把 APPS_SCRIPT_URL 替换成你的 Apps Script Web App URL");
+async function api(action, body = {}, method = "POST") {
+  if (!APPS_SCRIPT_URL.startsWith("http")) {
+    throw new Error("请先把 APPS_SCRIPT_URL 替换成你的 Apps Script Web App URL");
+  }
+
   let url = APPS_SCRIPT_URL + "?action=" + encodeURIComponent(action);
-  const options = { method };
+  const options = {
+    method,
+    redirect: "follow"
+  };
+
   if (method === "GET") {
-    Object.entries(body).forEach(([k,v]) => url += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(v));
+    Object.entries(body).forEach(([k, v]) => {
+      url += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(v ?? "");
+    });
   } else {
-    options.headers = { "Content-Type": "application/json" };
+    // 关键：不要再手动设置 Content-Type: application/json
     options.body = JSON.stringify(body);
   }
+
   const res = await fetch(url, options);
+
+  if (!res.ok) {
+    throw new Error("请求失败，状态码：" + res.status);
+  }
+
   return await res.json();
 }
 
