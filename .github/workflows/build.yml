@@ -1,1 +1,31 @@
+name: Build EXE with Pake
 
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Pake
+        run: npm install -g pake-cli
+
+      - name: Build EXE
+        run: |
+          pake ./jisuanqi.html ^
+          --name "交易计算器" ^
+          --use-local-file ^
+          --icon ./2706401.ico ^
+          --width 1280 ^
+          --height 800
+
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: 交易计算器
+          path: dist/
