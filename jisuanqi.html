@@ -1,0 +1,1327 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>交易计算器</title>
+  <style>
+    :root{
+      --bg:#0D1117;
+      --panel:#161B22;
+      --input:#0B1220;
+      --inputActive:#122036;
+      --text:#E6EDF3;
+      --muted:#9DA7B3;
+      --accent:#2F81F7;
+      --green:#3FB950;
+      --red:#F85149;
+      --yellow:#D29922;
+
+      --rowNormal: var(--panel);
+      --rowSelected:#22304A;
+      --border: rgba(230,237,243,.10);
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+
+      --glowA: rgba(47,129,247,.14);
+      --glowG: rgba(63,185,80,.12);
+      --glowR: rgba(248,81,73,.12);
+      --glowY: rgba(210,153,34,.14);
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: "Segoe UI", system-ui, -apple-system, Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      line-height:1.35;
+    }
+
+    .wrap{ width: 980px; margin: 18px auto 28px; }
+
+    h1{ margin: 8px 0 6px; font-size: 28px; font-weight: 800; letter-spacing:.2px; }
+    .sub{ color:var(--muted); font-size: 13px; margin-bottom: 10px; }
+
+    .statusbar{
+      display:flex; flex-wrap:wrap; gap: 10px; align-items:center;
+      padding: 10px 12px; border-radius: 14px; border:1px solid var(--border);
+      background: rgba(22,27,34,.75); box-shadow: var(--shadow);
+      margin: 10px 0 14px; backdrop-filter: blur(6px);
+    }
+    .chip{
+      display:flex; gap:8px; align-items:baseline;
+      padding: 8px 10px; border-radius: 12px;
+      border:1px solid rgba(230,237,243,.10);
+      background: rgba(13,17,23,.35);
+      min-width: 120px;
+    }
+    .chip .k{ color:var(--muted); font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .chip .v{ font-variant-numeric: tabular-nums; font-weight: 900; font-size: 13px; color: var(--text); white-space: nowrap; }
+    .chip.accent{ border-color: rgba(47,129,247,.25); background: rgba(47,129,247,.06); }
+    .chip.good{ border-color: rgba(63,185,80,.22); background: rgba(63,185,80,.06); }
+    .chip.bad { border-color: rgba(248,81,73,.22); background: rgba(248,81,73,.06); }
+
+    .panel{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 14px 12px;
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+    }
+    .panel-title{ font-size: 16px; font-weight: 800; margin: 0 0 10px; }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr 1fr auto;
+      gap: 10px 12px;
+      align-items:center;
+    }
+    label{ color:var(--muted); font-size: 13px; display:block; margin-bottom: 6px; }
+    .field{ min-width: 0; }
+    input, select, textarea, button{ font: inherit; }
+
+    input, select, textarea{
+      width:100%;
+      background:var(--input);
+      color:var(--text);
+      border:1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 10px;
+      outline:none;
+      font-variant-numeric: tabular-nums;
+    }
+    input:focus, select:focus, textarea:focus{
+      border-color: rgba(47,129,247,.55);
+      box-shadow: 0 0 0 3px rgba(47,129,247,.18);
+      background: var(--inputActive);
+    }
+
+    .inline{ display:flex; gap:8px; align-items:center; }
+    .pill{
+      color:var(--accent);
+      font-weight: 900;
+      white-space: nowrap;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border:1px solid rgba(47,129,247,.30);
+      background: rgba(47,129,247,.08);
+      font-variant-numeric: tabular-nums;
+    }
+    .hint{ color:var(--yellow); font-size: 12px; margin-top: 8px; }
+
+    button{
+      background: rgba(47,129,247,.14);
+      color: var(--text);
+      border:1px solid rgba(47,129,247,.35);
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor:pointer;
+      font-weight: 900;
+    }
+    button:hover{ filter: brightness(1.06); }
+    button:active{ transform: translateY(1px); }
+    .btn-ghost{ background: transparent; border: 1px solid var(--border); font-weight: 800; }
+    .btn-ok{ background: rgba(63,185,80,.14); border-color: rgba(63,185,80,.35); }
+    .btn-danger{ background: rgba(248,81,73,.14); border-color: rgba(248,81,73,.35); }
+
+    /* ====== 表格：新增「方向」「占比%」两列 ====== */
+    .table-head, .row{
+  display:grid;
+  grid-template-columns: 54px 120px 90px 150px 140px 90px 86px 86px 120px;
+  align-items:center;
+}
+/* 表格内按钮更紧凑，避免撑宽 */
+.row button,
+.table-head button{
+  padding: 8px 10px;
+}
+    .table-head{
+      color:var(--muted);
+      font-weight: 900;
+      font-size: 12.5px;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 6px;
+      letter-spacing:.1px;
+    }
+    .rows{ padding: 2px 4px 6px; }
+
+    .row{
+      position:relative;
+      border-radius: 12px;
+      padding: 6px 6px;
+      margin: 6px 2px;
+      background: var(--rowNormal);
+      border: 1px solid rgba(230,237,243,.06);
+      transition: box-shadow .16s ease, border-color .16s ease, background .16s ease;
+    }
+    .row:hover{
+      border-color: rgba(47,129,247,.22);
+      box-shadow: 0 0 0 3px var(--glowA);
+    }
+    .row.selected{
+      background: var(--rowSelected);
+      border-color: rgba(47,129,247,.35);
+      box-shadow: 0 0 0 3px rgba(47,129,247,.12);
+    }
+    .row.selected::before{
+      content:"";
+      position:absolute;
+      left:-6px;
+      top:4px;
+      bottom:4px;
+      width:4px;
+      border-radius:3px;
+      background: var(--accent);
+    }
+    .row.profit{
+      background: linear-gradient(90deg, rgba(63,185,80,.10), rgba(63,185,80,0) 45%), var(--rowNormal);
+      border-color: rgba(63,185,80,.16);
+    }
+    .row.profit:hover{ box-shadow: 0 0 0 3px var(--glowG); border-color: rgba(63,185,80,.22); }
+    .row.loss{
+      background: linear-gradient(90deg, rgba(248,81,73,.10), rgba(248,81,73,0) 45%), var(--rowNormal);
+      border-color: rgba(248,81,73,.16);
+    }
+    .row.loss:hover{ box-shadow: 0 0 0 3px var(--glowR); border-color: rgba(248,81,73,.22); }
+
+    /* 占比风险提示：黄/红 */
+    .row.risk-warn{
+      border-color: rgba(210,153,34,.24);
+    }
+    .row.risk-warn:hover{
+      box-shadow: 0 0 0 3px var(--glowY);
+      border-color: rgba(210,153,34,.34);
+    }
+    .row.risk-danger{
+      border-color: rgba(248,81,73,.26);
+    }
+
+    .row.selected.profit,
+    .row.selected.loss{
+      background: var(--rowSelected);
+    }
+
+    .cell{
+      padding: 0 6px;
+      font-size: 13px;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .num{ text-align:right; font-variant-numeric: tabular-nums; }
+    .center{ text-align:center; }
+
+    .amt input{
+      text-align:center;
+      padding: 8px 8px;
+      border-radius: 10px;
+      cursor: default;
+      user-select: none;
+    }
+    .amt input[readonly]{
+      opacity: 1;
+      background: var(--input);
+      color: var(--text);
+      border-color: rgba(230,237,243,.10);
+    }
+    .amt input.editing{
+      cursor: text;
+      user-select: text;
+      background: var(--inputActive);
+      border-color: rgba(47,129,247,.55);
+      box-shadow: 0 0 0 3px rgba(47,129,247,.14);
+    }
+
+    /* 方向按钮 */
+    .dir-btn{
+      width: 100%;
+      padding: 8px 8px;
+      border-radius: 10px;
+      border:1px solid rgba(230,237,243,.10);
+      background: rgba(13,17,23,.30);
+      color: var(--text);
+      font-weight: 900;
+      cursor:pointer;
+    }
+    .dir-btn:hover{
+      border-color: rgba(47,129,247,.30);
+      box-shadow: 0 0 0 3px rgba(47,129,247,.12);
+    }
+    .dir-bull{ border-color: rgba(63,185,80,.22); background: rgba(63,185,80,.08); }
+    .dir-bear{ border-color: rgba(248,81,73,.22); background: rgba(248,81,73,.08); }
+
+    .muted{ color: var(--muted); }
+    .green{ color: var(--green); font-weight: 900;}
+    .red{ color: var(--red); font-weight: 900;}
+    .yellow{ color: var(--yellow); font-weight: 900;}
+    .small{ font-size: 12px; color: var(--muted); }
+
+    .summary-wrap{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items:start;
+    }
+    textarea{ resize:none; height: 98px; }
+
+    .kbhint{ color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      background: rgba(22,27,34,.95);
+      border:1px solid rgba(230,237,243,.12);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      padding: 10px 14px;
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 13px;
+      display:none;
+      max-width: 90vw;
+      z-index: 9999;
+    }
+
+    .loss-switch{
+      appearance:none;
+      width:34px;
+      height:22px;
+      border-radius: 999px;
+      cursor:pointer;
+      background: rgba(230,237,243,.10);
+      border:1px solid rgba(230,237,243,.18);
+      position:relative;
+      transition: .18s ease;
+      vertical-align: middle;
+    }
+    .loss-switch::after{
+      content:"";
+      position:absolute;
+      top:50%;
+      left:3px;
+      width:16px;
+      height:16px;
+      border-radius: 999px;
+      transform: translateY(-50%);
+      background: rgba(230,237,243,.75);
+      transition: .18s ease;
+      box-shadow: 0 6px 14px rgba(0,0,0,.25);
+    }
+    .loss-switch:hover{
+      border-color: rgba(47,129,247,.35);
+      box-shadow: 0 0 0 3px rgba(47,129,247,.12);
+    }
+    .loss-switch:checked{
+      background: rgba(248,81,73,.85);
+      border-color: rgba(248,81,73,.9);
+      box-shadow: 0 0 0 3px rgba(248,81,73,.12);
+    }
+    .loss-switch:checked::after{
+      left: 14px;
+      background: rgba(255,255,255,.95);
+    }
+
+    .trade-controls{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      padding: 10px 8px 2px;
+      border-top: 1px solid rgba(230,237,243,.08);
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .trade-controls .left,
+    .trade-controls .right{
+      display:flex; gap:10px; align-items:center; flex-wrap: wrap;
+    }
+    .trade-controls .tag{
+      padding: 8px 10px;
+      border:1px solid rgba(230,237,243,.10);
+      border-radius: 12px;
+      background: rgba(13,17,23,.25);
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 12px;
+    }
+    .trade-controls input{
+      width: 90px;
+      text-align:center;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <h1>交易计算器</h1>
+    <div class="sub">职业交易员面板：支持亏损交易 / 汇总可能为负 / 双击金额编辑 / 输入实时更新 / Tab 下一行 / 数字键直接覆盖编辑 / 方向可切换 / 自动保存恢复</div>
+
+    <div class="statusbar" id="statusbar">
+      <div class="chip accent"><div class="k">秒数</div><div class="v" id="stSec">—</div></div>
+      <div class="chip accent"><div class="k">单笔利润率</div><div class="v" id="stRate">—</div></div>
+      <div class="chip"><div class="k">手续费</div><div class="v" id="stFeeRate">1.00%</div></div>
+      <div class="chip"><div class="k">笔数</div><div class="v" id="stTrades">—</div></div>
+      <div class="chip"><div class="k">目标利润率</div><div class="v" id="stTarget">—</div></div>
+      <div class="chip accent" id="chipNet"><div class="k">净利润</div><div class="v" id="stNet">—</div></div>
+      <div class="chip accent" id="chipFinal"><div class="k">最终金额</div><div class="v" id="stFinal">—</div></div>
+    </div>
+
+    <div class="panel" id="paramsPanel">
+      <div class="panel-title">参数输入</div>
+
+      <div class="grid">
+        <div class="field">
+          <label>初始资金</label>
+          <div class="inline">
+            <input id="capital" value="10000" inputmode="decimal" />
+            <div class="muted" style="min-width:40px;">USD</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>交易秒数</label>
+          <select id="seconds">
+            <option value="30">30秒</option>
+            <option value="60">60秒</option>
+            <option value="90">90秒</option>
+            <option value="180">180秒</option>
+            <option value="360">360秒</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>单笔利润率</label>
+          <div class="pill" id="rateText">0.00%</div>
+        </div>
+
+        <div class="field" style="display:flex;align-items:end;justify-content:flex-end;">
+          <button id="btnGen">生成</button>
+        </div>
+
+        <div class="field">
+          <label>交易笔数（1~10，可在明细下方加减）</label>
+          <input id="trades" value="5" inputmode="numeric" />
+        </div>
+
+        <div class="field">
+          <label>目标利润率</label>
+          <div class="inline">
+            <input id="target" value="10" inputmode="decimal" />
+            <div class="muted" style="min-width:18px;">%</div>
+          </div>
+        </div>
+
+        <div class="field" style="grid-column: 3 / span 2;">
+          <div class="hint">提示：勾选“亏损”后，该笔利润 = -金额，手续费仍扣 1%</div>
+          <div class="hint">占比提示：&gt;10% 黄警告，&gt;20% 红警告（可在代码中改阈值）</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="detailPanel">
+      <div class="panel-title">每笔交易明细</div>
+      <div class="small">操作：点击方向切换；双击金额或行进入编辑；Enter/失焦结束；Esc取消；Tab/Shift+Tab 跳下一/上一行；选中行后按数字键直接覆盖编辑</div>
+
+      <div class="table-head">
+        <div class="cell">序号</div>
+        <div class="cell center">方向</div>
+        <div class="cell num">占比%</div>
+        <div class="cell num">金额(USD)</div>
+        <div class="cell num">交易利润</div>
+        <div class="cell num">手续费(1%)</div>
+        <div class="cell center">复制</div>
+        <div class="cell center">亏损</div>
+        <div class="cell num">本笔净收益</div>
+      </div>
+
+      <div id="rows" class="rows"></div>
+
+      <div class="trade-controls">
+        <div class="left">
+          <div class="tag">交易笔数管理</div>
+          <button id="btnAddTrade" class="btn-ok">+ 增加一笔</button>
+          <button id="btnRemoveLast" class="btn-ghost">- 删除最后一笔</button>
+          <button id="btnRemoveSelected" class="btn-danger">删除选中</button>
+        </div>
+
+        <div class="right">
+          <div class="tag">当前笔数</div>
+          <input id="tradesInline" value="5" inputmode="numeric" />
+          <div class="small muted">范围 1~10</div>
+        </div>
+      </div>
+
+      <div class="kbhint">键盘：↑↓ 选行；Enter 编辑；Delete 清空金额；Ctrl+C 复制当前行；双击编辑；Tab 下一行；按数字键快速覆盖输入</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">汇总（可能为负）</div>
+      <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 8px 14px;">
+        <div id="sumTradeProfit">总交易利润（含亏损本金）：0.00</div>
+        <div id="sumProfitRate">交易利润率：0.00%</div>
+        <div id="sumFee">总交易手续费：0.00</div>
+        <div id="sumFinal">最终金额：0.00</div>
+        <div id="sumNet">纯交易利润（总利润-手续费）：0.00</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">总结（可复制）</div>
+      <div class="summary-wrap">
+        <textarea id="summary" readonly></textarea>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button id="btnCopySummary" class="btn-ok">复制总结</button>
+          <button id="btnCopyAllSignals" class="btn-ghost">复制全部信号</button>
+          <div class="small muted">自动保存：刷新/关闭再打开会恢复你上次的参数与明细。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+<script>
+(() => {
+  const FEE_RATE = 0.01;
+  const MAX_TRADES = 10;
+
+  // ✅ 占比风险阈值（你要改这里就行）
+  const RISK_WARN = 0.10;   // >10% 黄
+  const RISK_DANGER = 0.20; // >20% 红
+
+  // ✅ 自动保存 key
+  const STORE_KEY = "SJ_TRADE_CALC_PRO_V3";
+
+  const el = (id) => document.getElementById(id);
+
+  function getRate(sec){
+    switch(Number(sec)){
+      case 30: return 0.25;
+      case 60: return 0.35;
+      case 90: return 0.45;
+      case 180:return 0.55;
+      case 360:return 0.65;
+      default: return 0.25;
+    }
+  }
+
+  function parseNum(v){
+    if (v == null) return 0;
+    v = String(v).trim();
+    v = v.replaceAll("秒","").replaceAll("%","").replaceAll(",","");
+    v = v.replace(/[^\d.\-]/g,"");
+    if (v === "" || v === "-" || v === "." || v === "-.") return 0;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  const fmt2 = (x) => (Number(x)||0).toFixed(2);
+
+  const moneyFmt = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function fmtMoney(x){
+    const n = Number(x)||0;
+    return moneyFmt.format(n);
+  }
+
+  const fmtPct = (x) => ((Number(x)||0)*100).toFixed(2) + "%";
+  const fmtPct2 = (x) => (Number(x)||0).toFixed(2) + "%";
+
+  function clampInt(v, lo, hi){
+    v = v|0;
+    if (v < lo) return lo;
+    if (v > hi) return hi;
+    return v;
+  }
+
+  function toast(msg){
+    const t = el("toast");
+    t.textContent = msg;
+    t.style.display = "block";
+    clearTimeout(toast._tm);
+    toast._tm = setTimeout(() => { t.style.display = "none"; }, 1700);
+  }
+
+  function fallbackCopy(text){
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position="fixed";
+    ta.style.left="-9999px";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try{ document.execCommand("copy"); }catch(e){}
+    document.body.removeChild(ta);
+  }
+
+  function randomDirection(){
+    return (Math.random() < 0.5) ? "Bullish（绿色）" : "Bearish（红色）";
+  }
+
+  // ---------- state ----------
+  let rows = [];
+  let currentTrades = 0;
+  let selectedRow = 0;
+  let editingRow = -1;
+
+  // ---------- DOM refs ----------
+  const capitalEl = el("capital");
+  const secondsEl = el("seconds");
+  const tradesEl  = el("trades");
+  const tradesInlineEl = el("tradesInline");
+  const targetEl  = el("target");
+  const rateTextEl= el("rateText");
+  const rowsWrap  = el("rows");
+  const detailPanel = el("detailPanel");
+
+  const sumTradeProfitEl = el("sumTradeProfit");
+  const sumFeeEl = el("sumFee");
+  const sumNetEl = el("sumNet");
+  const sumProfitRateEl = el("sumProfitRate");
+  const sumFinalEl = el("sumFinal");
+  const summaryEl = el("summary");
+
+  // statusbar
+  const stSec = el("stSec");
+  const stRate = el("stRate");
+  const stFeeRate = el("stFeeRate");
+  const stTrades = el("stTrades");
+  const stTarget = el("stTarget");
+  const stNet = el("stNet");
+  const stFinal = el("stFinal");
+  const chipNet = el("chipNet");
+  const chipFinal = el("chipFinal");
+
+  // ====== 自动保存（防频繁写） ======
+  let saveTimer = 0;
+  function scheduleSave(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveNow, 250);
+  }
+  function saveNow(){
+    try{
+      const payload = {
+        v: 3,
+        ts: Date.now(),
+        capital: sanitizeCapital(),
+        seconds: String(secondsEl.value),
+        target: sanitizeTarget(),
+        trades: currentTrades,
+        rows: rows.map(r => ({
+          amt: Number(r.amt)||0,
+          loss: !!r.loss,
+          dir: (r.dir === "Bearish（红色）") ? "Bearish（红色）" : "Bullish（绿色）"
+        }))
+      };
+      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+    }catch(e){}
+  }
+  function loadSaved(){
+    try{
+      const raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      if (!obj || !obj.rows || !Array.isArray(obj.rows)) return null;
+      return obj;
+    }catch(e){
+      return null;
+    }
+  }
+
+  function updateRateText(){
+    const sec = parseNum(secondsEl.value);
+    const rate = getRate(sec);
+    rateTextEl.textContent = fmtPct(rate);
+
+    stSec.textContent = secondsEl.options[secondsEl.selectedIndex].text;
+    stRate.textContent = fmtPct(rate);
+    stFeeRate.textContent = "1.00%";
+  }
+
+  // ✅ 输入合法化
+  function sanitizeCapital(){
+    let cap = parseNum(capitalEl.value);
+    if (cap < 0) cap = 0;
+    return cap;
+  }
+  function sanitizeTarget(){
+    let t = parseNum(targetEl.value);
+    if (!Number.isFinite(t)) t = 0;
+    if (t < 0) t = 0;
+    return t; // percent
+  }
+  function sanitizeTrades(v){
+    let t = Math.round(parseNum(v));
+    if (t < 1) t = 1;
+    if (t > MAX_TRADES) t = MAX_TRADES;
+    return t;
+  }
+
+  function computeDefaultPerAmount(){
+    const capital = sanitizeCapital();
+    let target = sanitizeTarget()/100;
+    if (target < 0) target = 0;
+
+    const sec = parseNum(secondsEl.value);
+    const rate = getRate(sec);
+
+    let trades = currentTrades;
+    if (trades < 1) trades = 1;
+    if (rate <= 0) return 0;
+
+    return (capital * target) / rate / trades;
+  }
+
+  function syncTradesInputs(){
+    tradesEl.value = String(currentTrades);
+    tradesInlineEl.value = String(currentTrades);
+    stTrades.textContent = String(currentTrades);
+  }
+
+  function selectRow(i){
+    if (currentTrades < 1) return;
+    selectedRow = clampInt(i, 0, currentTrades-1);
+    renderSelectionOnly();
+  }
+
+  function renderSelectionOnly(){
+    const rowEls = rowsWrap.querySelectorAll(".row");
+    rowEls.forEach((node, idx) => node.classList.toggle("selected", idx === selectedRow));
+  }
+
+  function startEdit(i, opts = { replaceWith: null }){
+    if (i < 0 || i >= currentTrades) return;
+
+    if (editingRow !== -1 && editingRow !== i){
+      finishEdit(editingRow, true);
+    }
+
+    editingRow = i;
+    selectRow(i);
+
+    const inp = rowsWrap.querySelector(`#amt-${i}`);
+    if (!inp) return;
+
+    rows[i]._editBackup = rows[i].amt;
+
+    inp.readOnly = false;
+    inp.classList.add("editing");
+    inp.focus();
+
+    if (opts.replaceWith !== null){
+      inp.value = String(opts.replaceWith);
+      inp.select();
+      rows[i].amt = Math.max(0, parseNum(inp.value));
+      recalc();
+      scheduleSave();
+    } else {
+      inp.value = fmt2(rows[i].amt);
+      inp.select();
+    }
+  }
+
+  function finishEdit(i, formatAndLock){
+    const inp = rowsWrap.querySelector(`#amt-${i}`);
+    if (!inp) return;
+
+    let v = parseNum(inp.value);
+    if (v < 0) v = 0;
+    rows[i].amt = v;
+
+    if (formatAndLock){
+      inp.value = fmtMoney(v);
+      inp.readOnly = true;
+      inp.classList.remove("editing");
+      editingRow = -1;
+    }
+
+    recalc();
+    scheduleSave();
+  }
+
+  function cancelEdit(i){
+    const inp = rowsWrap.querySelector(`#amt-${i}`);
+    if (!inp) return;
+
+    const old = Number(rows[i]._editBackup || 0);
+    rows[i].amt = old;
+
+    inp.value = fmtMoney(old);
+    inp.readOnly = true;
+    inp.classList.remove("editing");
+    editingRow = -1;
+
+    recalc();
+    scheduleSave();
+  }
+
+  function toggleDir(i){
+    if (i < 0 || i >= currentTrades) return;
+    rows[i].dir = (rows[i].dir === "Bullish（绿色）") ? "Bearish（红色）" : "Bullish（绿色）";
+    const btn = rowsWrap.querySelector(`#dir-${i}`);
+    if (btn){
+      btn.textContent = rows[i].dir;
+      btn.classList.toggle("dir-bull", rows[i].dir === "Bullish（绿色）");
+      btn.classList.toggle("dir-bear", rows[i].dir === "Bearish（红色）");
+    }
+    scheduleSave();
+  }
+
+  function copyRow(i){
+    if (i < 0 || i >= currentTrades) return;
+    selectRow(i);
+
+    const amt = rows[i].amt;
+    const secText = secondsEl.options[secondsEl.selectedIndex].text;
+    const direction = rows[i].dir || "Bullish（绿色）";
+
+    const text =
+`第${i+1}笔交易信号
+
+交易方向：${direction}
+交易秒数：${secText}
+交易金额：${fmtMoney(amt)} USD
+
+当你输入完毕后，先截图给我，我会为你进行检查，然后等待我的指令`;
+
+    navigator.clipboard.writeText(text).then(() => {
+      toast(`已复制第${i+1}笔交易信号模板`);
+    }).catch(() => {
+      fallbackCopy(text);
+      toast(`已复制第${i+1}笔交易信号模板`);
+    });
+  }
+
+  function copySummary(){
+    const text = summaryEl.value || "";
+    navigator.clipboard.writeText(text).then(() => toast("总结已复制到剪贴板"))
+      .catch(() => { fallbackCopy(text); toast("总结已复制到剪贴板"); });
+  }
+
+  function copyAllSignals(){
+    const secText = secondsEl.options[secondsEl.selectedIndex].text;
+
+    let out = "";
+    for (let i=0;i<currentTrades;i++){
+      const amt = rows[i].amt;
+      const direction = rows[i].dir || "Bullish（绿色）";
+
+      out +=
+`第${i+1}笔交易信号
+
+交易方向：${direction}
+交易秒数：${secText}
+交易金额：${fmtMoney(amt)} USD
+
+当你输入完毕后，先截图给我，我会为你进行检查，然后等待我的指令
+
+----------------------------
+
+`;
+    }
+
+    const finalText = out.trim();
+    navigator.clipboard.writeText(finalText).then(() => toast("已复制全部交易信号"))
+      .catch(() => { fallbackCopy(finalText); toast("已复制全部交易信号"); });
+  }
+
+  function updateStatusBar(targetPct, netProfit, finalAmt){
+    stTarget.textContent = (Number(targetPct)||0).toFixed(2) + "%";
+    stNet.textContent = fmtMoney(netProfit) + " USD";
+    stFinal.textContent = fmtMoney(finalAmt) + " USD";
+
+    const pos = netProfit > 0;
+    const neg = netProfit < 0;
+
+    chipNet.classList.toggle("good", pos);
+    chipNet.classList.toggle("bad", neg);
+    chipFinal.classList.toggle("good", pos);
+    chipFinal.classList.toggle("bad", neg);
+    chipNet.classList.toggle("accent", !pos && !neg);
+    chipFinal.classList.toggle("accent", !pos && !neg);
+  }
+
+  function recalc(){
+    const capital = sanitizeCapital();
+    const sec = parseNum(secondsEl.value);
+    const rate = getRate(sec);
+
+    let totalTradeProfit = 0;
+    let totalFee = 0;
+    let netProfit = 0;
+
+    for (let i=0;i<currentTrades;i++){
+      const r = rows[i];
+      const fee = r.amt * FEE_RATE;
+      const tradeProfit = r.loss ? -r.amt : (r.amt * rate);
+      const net = tradeProfit - fee;
+
+      r.fee = fee;
+      r.tradeProfit = tradeProfit;
+      r.net = net;
+
+      totalTradeProfit += tradeProfit;
+      totalFee += fee;
+      netProfit += net;
+    }
+
+    const profitRate = (capital !== 0) ? (netProfit / capital) : 0;
+    const finalAmt = capital + netProfit;
+
+    for (let i=0;i<currentTrades;i++){
+      const r = rows[i];
+
+      const rowNode = rowsWrap.querySelector(`#row-${i}`);
+      const amtInp = rowsWrap.querySelector(`#amt-${i}`);
+      const pctNode = rowsWrap.querySelector(`#pct-${i}`);
+      const p = rowsWrap.querySelector(`#profit-${i}`);
+      const f = rowsWrap.querySelector(`#fee-${i}`);
+      const n = rowsWrap.querySelector(`#net-${i}`);
+
+      // 金额展示（非编辑中保持千分位）
+      if (amtInp && (editingRow !== i)){
+        amtInp.value = fmtMoney(r.amt);
+      }
+
+      // 占比%
+      const pct = (capital > 0) ? (r.amt / capital) : 0;
+      r.pct = pct;
+
+      if (pctNode){
+        const pctText = (capital > 0) ? fmtPct2(pct*100) : "—";
+        pctNode.textContent = pctText;
+        pctNode.classList.toggle("yellow", pct > RISK_WARN && pct <= RISK_DANGER);
+        pctNode.classList.toggle("red", pct > RISK_DANGER);
+      }
+
+      if (p){
+        p.textContent = fmtMoney(r.tradeProfit);
+        p.classList.toggle("red", r.tradeProfit < 0);
+        p.classList.toggle("green", r.tradeProfit > 0);
+      }
+      if (f) f.textContent = fmtMoney(r.fee);
+
+      if (n){
+        n.textContent = fmtMoney(r.net);
+        n.classList.toggle("red", r.net < 0);
+        n.classList.toggle("green", r.net > 0);
+      }
+
+      if (rowNode){
+        rowNode.classList.toggle("profit", r.net > 0);
+        rowNode.classList.toggle("loss", r.net < 0);
+
+        // 风险行框提示
+        rowNode.classList.toggle("risk-warn", pct > RISK_WARN && pct <= RISK_DANGER);
+        rowNode.classList.toggle("risk-danger", pct > RISK_DANGER);
+      }
+    }
+
+    sumTradeProfitEl.textContent = `总交易利润（含亏损本金）：${fmtMoney(totalTradeProfit)}`;
+    sumFeeEl.textContent = `总交易手续费：${fmtMoney(totalFee)}`;
+    sumNetEl.textContent = `纯交易利润（总利润-手续费）：${fmtMoney(netProfit)}`;
+    sumProfitRateEl.textContent = `交易利润率：${fmtPct(profitRate)}`;
+    sumFinalEl.textContent = `最终金额：${fmtMoney(finalAmt)}`;
+
+    const neg = netProfit < 0;
+    const pos = netProfit > 0;
+    [sumNetEl, sumProfitRateEl, sumFinalEl].forEach(node => {
+      node.classList.toggle("red", neg);
+      node.classList.toggle("green", pos);
+    });
+
+    summaryEl.value =
+`今日你的交易账户初始资金为 ${fmtMoney(capital)} USD，你目前的交易账户资金为 ${fmtMoney(finalAmt)} USD，今天你通过交易一共获利了 ${fmtMoney(netProfit)} USD，所以你今天的交易利润率为 ${fmtPct(profitRate)}`;
+
+    updateStatusBar(sanitizeTarget(), netProfit, finalAmt);
+  }
+
+  function applyDefaultAmounts(){
+    const per = computeDefaultPerAmount();
+    const per2 = Math.max(0, Math.round(per * 100) / 100);
+
+    for (let i=0;i<currentTrades;i++){
+      rows[i].amt = per2;
+      rows[i].loss = false;
+      rows[i].tradeProfit = 0;
+      rows[i].fee = 0;
+      rows[i].net = 0;
+      rows[i].dir = rows[i].dir || randomDirection();
+    }
+  }
+
+  function renderRows(){
+    rowsWrap.innerHTML = "";
+    const frag = document.createDocumentFragment();
+
+    for (let i=0;i<currentTrades;i++){
+      const r = rows[i];
+
+      const row = document.createElement("div");
+      row.id = `row-${i}`;
+      row.className = "row" + (i === selectedRow ? " selected" : "");
+      row.tabIndex = 0;
+
+      row.addEventListener("click", () => selectRow(i));
+
+      row.addEventListener("dblclick", (e) => {
+        const t = e.target;
+        if (t && (t.closest("button") || t.closest("input.loss-switch"))) return;
+        startEdit(i);
+      });
+
+      const dir = r.dir || "Bullish（绿色）";
+      const dirCls = (dir === "Bullish（绿色）") ? "dir-bull" : "dir-bear";
+
+      row.innerHTML = `
+        <div class="cell">${i+1}</div>
+
+        <div class="cell center">
+          <button id="dir-${i}" class="dir-btn ${dirCls}" title="点击切换方向">${dir}</button>
+        </div>
+
+        <div class="cell num" id="pct-${i}">—</div>
+
+        <div class="cell amt num">
+          <input id="amt-${i}" value="${fmtMoney(r.amt)}" readonly />
+        </div>
+
+        <div class="cell num" id="profit-${i}">${fmtMoney(r.tradeProfit || 0)}</div>
+        <div class="cell muted num" id="fee-${i}">${fmtMoney(r.fee || 0)}</div>
+
+        <div class="cell center">
+          <button id="copy-${i}" class="btn-ghost">复制</button>
+        </div>
+
+        <div class="cell center">
+          <input id="loss-${i}" type="checkbox" class="loss-switch" ${r.loss ? "checked" : ""} />
+        </div>
+
+        <div class="cell num" id="net-${i}">${fmtMoney(r.net || 0)}</div>
+      `;
+
+      frag.appendChild(row);
+    }
+
+    rowsWrap.appendChild(frag);
+
+    for (let i=0;i<currentTrades;i++){
+      const dirBtn = rowsWrap.querySelector(`#dir-${i}`);
+      const amt = rowsWrap.querySelector(`#amt-${i}`);
+      const copy = rowsWrap.querySelector(`#copy-${i}`);
+      const loss = rowsWrap.querySelector(`#loss-${i}`);
+
+      dirBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleDir(i);
+      });
+
+      amt.addEventListener("dblclick", (e) => {
+        e.stopPropagation();
+        startEdit(i);
+      });
+
+      amt.addEventListener("input", () => {
+        rows[i].amt = Math.max(0, parseNum(amt.value));
+        recalc();
+        scheduleSave();
+      });
+
+      amt.addEventListener("blur", () => {
+        if (editingRow === i) finishEdit(i, true);
+      });
+
+      amt.addEventListener("keydown", (e) => {
+        if (e.key === "Enter"){
+          e.preventDefault();
+          finishEdit(i, true);
+        } else if (e.key === "Escape"){
+          e.preventDefault();
+          cancelEdit(i);
+        } else if (e.key === "Tab"){
+          e.preventDefault();
+          finishEdit(i, true);
+          const next = e.shiftKey ? (i - 1) : (i + 1);
+          if (next >= 0 && next < currentTrades) startEdit(next);
+        }
+      });
+
+      copy.addEventListener("click", (e) => {
+        e.stopPropagation();
+        copyRow(i);
+      });
+
+      loss.addEventListener("change", (e) => {
+        rows[i].loss = !!e.target.checked;
+        recalc();
+        scheduleSave();
+      });
+    }
+
+    renderSelectionOnly();
+  }
+
+  function setTrades(n, keepExisting = true){
+    n = sanitizeTrades(n);
+
+    if (!keepExisting){
+      currentTrades = n;
+      rows = Array.from({length: currentTrades}, () => ({
+        amt: 0, loss: false, dir: randomDirection(),
+        tradeProfit: 0, fee: 0, net: 0
+      }));
+      selectedRow = 0;
+      editingRow = -1;
+      updateRateText();
+      applyDefaultAmounts();
+      syncTradesInputs();
+      renderRows();
+      recalc();
+      scheduleSave();
+      return;
+    }
+
+    if (n === currentTrades) {
+      syncTradesInputs();
+      return;
+    }
+
+    if (editingRow !== -1) finishEdit(editingRow, true);
+    editingRow = -1;
+
+    if (n > currentTrades){
+      const addCount = n - currentTrades;
+      const per = computeDefaultPerAmount();
+      const per2 = Math.max(0, Math.round(per * 100) / 100);
+
+      for (let k=0;k<addCount;k++){
+        rows.push({
+          amt: per2,
+          loss: false,
+          dir: randomDirection(),
+          tradeProfit: 0, fee: 0, net: 0
+        });
+      }
+    } else {
+      rows.length = n;
+    }
+
+    currentTrades = n;
+    selectedRow = clampInt(selectedRow, 0, currentTrades-1);
+    syncTradesInputs();
+    renderRows();
+    recalc();
+    scheduleSave();
+  }
+
+  function addTrade(){
+    if (currentTrades >= MAX_TRADES){
+      toast(`最多只能 ${MAX_TRADES} 笔`);
+      return;
+    }
+    setTrades(currentTrades + 1, true);
+    toast("已增加一笔");
+  }
+
+  function removeLastTrade(){
+    if (currentTrades <= 1){
+      toast("至少保留 1 笔");
+      return;
+    }
+    setTrades(currentTrades - 1, true);
+    toast("已删除最后一笔");
+  }
+
+  function removeSelectedTrade(){
+    if (currentTrades <= 1){
+      toast("至少保留 1 笔");
+      return;
+    }
+    if (editingRow !== -1) finishEdit(editingRow, true);
+    const idx = selectedRow;
+    rows.splice(idx, 1);
+    currentTrades = rows.length;
+    selectedRow = clampInt(idx, 0, currentTrades-1);
+    syncTradesInputs();
+    renderRows();
+    recalc();
+    scheduleSave();
+    toast(`已删除第${idx+1}笔`);
+  }
+
+  // ✅ “生成”：重新按当前参数生成（会覆盖明细）
+  function generateFresh(){
+    const t = sanitizeTrades(tradesEl.value);
+    currentTrades = t;
+
+    rows = Array.from({length: currentTrades}, () => ({
+      amt: 0,
+      loss: false,
+      dir: randomDirection(),
+      tradeProfit: 0,
+      fee: 0,
+      net: 0
+    }));
+
+    editingRow = -1;
+    updateRateText();
+    applyDefaultAmounts();
+    selectedRow = 0;
+
+    syncTradesInputs();
+    renderRows();
+    recalc();
+    scheduleSave();
+  }
+
+  // ✅ 修复参数输入无法输入：全局键盘仅在明细面板内拦截
+  function isEditableControl(node){
+    if (!node) return false;
+    const tag = node.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT"){
+      if (node.readOnly || node.disabled) return false;
+      return true;
+    }
+    return false;
+  }
+
+  document.addEventListener("keydown", (e) => {
+    const active = document.activeElement;
+
+    const activeIsEditable = isEditableControl(active);
+
+    const isAmtEditing = active && active.tagName === "INPUT"
+      && active.id && active.id.startsWith("amt-")
+      && !active.readOnly;
+
+    if (activeIsEditable && !isAmtEditing){
+      return;
+    }
+
+    const inDetailPanel = detailPanel.contains(active) || detailPanel.contains(e.target);
+    if (!inDetailPanel && !isAmtEditing){
+      return;
+    }
+
+    if (!isAmtEditing){
+      if (e.key === "ArrowUp"){
+        e.preventDefault();
+        selectRow(selectedRow - 1);
+        return;
+      }
+      if (e.key === "ArrowDown"){
+        e.preventDefault();
+        selectRow(selectedRow + 1);
+        return;
+      }
+    }
+
+    if (!isAmtEditing && e.key === "Enter"){
+      e.preventDefault();
+      startEdit(selectedRow);
+      return;
+    }
+
+    if (!isAmtEditing && e.key === "Delete"){
+      e.preventDefault();
+      rows[selectedRow].amt = 0;
+      recalc();
+      scheduleSave();
+      toast(`已清空第${selectedRow+1}笔金额`);
+      return;
+    }
+
+    if (!isAmtEditing && (e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C")){
+      e.preventDefault();
+      copyRow(selectedRow);
+      return;
+    }
+
+    if (!isAmtEditing){
+      const k = e.key;
+      if ((k >= "0" && k <= "9") || k === "."){
+        e.preventDefault();
+        startEdit(selectedRow, { replaceWith: k });
+        return;
+      }
+      if (k === "Backspace"){
+        e.preventDefault();
+        startEdit(selectedRow, { replaceWith: "" });
+        return;
+      }
+    }
+  });
+
+  // ---------- events ----------
+  el("btnGen").addEventListener("click", generateFresh);
+  el("btnCopySummary").addEventListener("click", copySummary);
+  el("btnCopyAllSignals").addEventListener("click", copyAllSignals);
+
+  secondsEl.addEventListener("change", () => { updateRateText(); recalc(); scheduleSave(); });
+
+  capitalEl.addEventListener("input", () => { recalc(); scheduleSave(); });
+  targetEl.addEventListener("input", () => { recalc(); scheduleSave(); });
+
+  tradesEl.addEventListener("change", () => setTrades(tradesEl.value, true));
+  tradesInlineEl.addEventListener("change", () => setTrades(tradesInlineEl.value, true));
+
+  el("btnAddTrade").addEventListener("click", addTrade);
+  el("btnRemoveLast").addEventListener("click", removeLastTrade);
+  el("btnRemoveSelected").addEventListener("click", removeSelectedTrade);
+
+  // ====== 启动：优先恢复上次状态 ======
+  function boot(){
+    const saved = loadSaved();
+    updateRateText();
+
+    if (saved){
+      // 恢复参数
+      if (saved.capital != null) capitalEl.value = String(saved.capital);
+      if (saved.target != null) targetEl.value = String(saved.target);
+      if (saved.seconds != null) secondsEl.value = String(saved.seconds);
+
+      const t = sanitizeTrades(saved.trades ?? (saved.rows?.length ?? 5));
+      currentTrades = t;
+
+      // 恢复 rows（不足补齐，超出截断）
+      const rawRows = Array.isArray(saved.rows) ? saved.rows : [];
+      rows = [];
+      for (let i=0;i<currentTrades;i++){
+        const src = rawRows[i] || {};
+        rows.push({
+          amt: Math.max(0, Number(src.amt)||0),
+          loss: !!src.loss,
+          dir: (src.dir === "Bearish（红色）") ? "Bearish（红色）" : "Bullish（绿色）",
+          tradeProfit: 0, fee: 0, net: 0
+        });
+      }
+
+      selectedRow = 0;
+      editingRow = -1;
+      syncTradesInputs();
+      renderRows();
+      recalc();
+      toast("已恢复上次数据");
+      return;
+    }
+
+    // 没有保存：默认生成
+    currentTrades = sanitizeTrades(tradesEl.value);
+    rows = Array.from({length: currentTrades}, () => ({
+      amt: 0, loss: false, dir: randomDirection(),
+      tradeProfit: 0, fee: 0, net: 0
+    }));
+    applyDefaultAmounts();
+    syncTradesInputs();
+    renderRows();
+    recalc();
+    scheduleSave();
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
