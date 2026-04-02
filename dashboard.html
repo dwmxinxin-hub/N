@@ -102,11 +102,32 @@ function statusOf(m){
   if (Number(m.hotChatCount||0) >= 2 || Number(m.intentionCount||0) >= 2) return { cls:"yellow", text:"持续跟进" };
   return { cls:"green", text:"正常推进" };
 }
-async function api(action, params={}, method="GET"){
-  if (!APPS_SCRIPT_URL.startsWith("http")) throw new Error("请先把 APPS_SCRIPT_URL 替换成你的 Apps Script Web App URL");
+async function api(action, body = {}, method = "POST") {
+  if (!APPS_SCRIPT_URL.startsWith("http")) {
+    throw new Error("请先把 APPS_SCRIPT_URL 替换成你的 Apps Script Web App URL");
+  }
+
   let url = APPS_SCRIPT_URL + "?action=" + encodeURIComponent(action);
-  Object.entries(params).forEach(([k,v]) => { url += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(v); });
-  const res = await fetch(url, { method });
+  const options = {
+    method,
+    redirect: "follow"
+  };
+
+  if (method === "GET") {
+    Object.entries(body).forEach(([k, v]) => {
+      url += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(v ?? "");
+    });
+  } else {
+    // 关键：不要再手动设置 Content-Type: application/json
+    options.body = JSON.stringify(body);
+  }
+
+  const res = await fetch(url, options);
+
+  if (!res.ok) {
+    throw new Error("请求失败，状态码：" + res.status);
+  }
+
   return await res.json();
 }
 function updateHeader(data){
