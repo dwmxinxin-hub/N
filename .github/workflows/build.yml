@@ -1,6 +1,7 @@
 name: Build EXE with Pake
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "main" ]
 
@@ -12,20 +13,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Install Pake
         run: npm install -g pake-cli
 
+      - name: Check Pake Version
+        run: pake --version
+
       - name: Build EXE
+        shell: cmd
         run: |
           pake ./jisuanqi.html ^
-          --name "交易计算器" ^
-          --use-local-file ^
-          --icon ./2706401.ico ^
-          --width 1280 ^
-          --height 800
+            --name "交易计算器" ^
+            --use-local-file ^
+            --width 1280 ^
+            --height 800 ^
+            --keep-binary
 
-      - name: Upload EXE
+      - name: List Files
+        shell: cmd
+        run: dir
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: 交易计算器
-          path: dist/
+          name: 交易计算器-EXE
+          path: .
